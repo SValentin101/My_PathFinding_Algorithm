@@ -1,0 +1,9 @@
+﻿  main.cpp
+c:\users\valen\source\repos\pathfind algorithm sfml\pathfind algorithm sfml\main.cpp(44): warning C4244: 'argument': conversion from 'int' to 'T', possible loss of data
+          with
+          [
+              T=float
+          ]
+c:\users\valen\source\repos\pathfind algorithm sfml\pathfind algorithm sfml\main.cpp(202): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+c:\users\valen\source\repos\pathfind algorithm sfml\pathfind algorithm sfml\main.cpp(203): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+  Pathfind Algorithm SFML.vcxproj -> C:\Users\Valen\source\repos\Pathfind Algorithm SFML\Debug\Pathfind Algorithm SFML.exe
