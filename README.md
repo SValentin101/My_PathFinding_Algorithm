@@ -7,6 +7,6 @@ All the code can be found in a single file in the next location: Pathfinding Alg
 
 I've also uploaded a video to youtube where you can see it in action! -->  https://youtu.be/RS1HwmjOYZs
 
-I've also decided to update the code with the intention of increasing performance, since before, the algorithm took much more time than I wanted if the number of squares was increased. Now, that is no longer an issue. Another change implemented is to not allow for diagonal movement because that way it looks prettier. (this was very very easy to implement)
+I've also decided to update the code with the intention of increasing performance, since before, the algorithm took much more time than I wanted if the number of squares was increased. Now, that is no longer an issue. Another change implemented is to not allow for diagonal movement.
 
 Feel free to check the new version in action! --> https://www.youtube.com/watch?v=oNGltfPC_gs&feature=youtu.be
