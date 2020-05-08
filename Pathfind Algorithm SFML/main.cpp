@@ -39,11 +39,11 @@ public:
 	{
 		this->x_ident = x_ident;
 		this->y_ident = y_ident;
-		Body.setSize(sf::Vector2f(75, 75));
-		Body.setOrigin(sf::Vector2f(25, 25));
-		Body.setPosition(sf::Vector2f(x_ident * 75 + 50, y_ident * 75 + 50));
+		Body.setSize(sf::Vector2f(30, 30));
+		Body.setOrigin(sf::Vector2f(15, 15));
+		Body.setPosition(sf::Vector2f(x_ident * 31.80 + 30, y_ident * 31.80 + 30));
 		Body.setOutlineColor(sf::Color::Black);
-		Body.setOutlineThickness(1.25);
+		Body.setOutlineThickness(1);
 		
 		if (transit)
 		{
@@ -147,23 +147,28 @@ int main()
 
 	// Create the graphical representation of the nodes directly in vector_SFML_casillas
 	// Create the 'real' nodes which we will be using for operations directly in vector_casillas vector.
-	// For simplicity sake we will have a total of 144 nodes on the screen.
-	for (int i = 0; i != 12; i++)
+	// Here we have 30 x 31 nodes, 930 nodes in total. If you want less just change this settings and remember to adjust the size
+	// that the nodes have in the class NodeBody (also their origin and the position they will be into)
+	for (int i = 0; i != 30; i++)
 	{
-		for (int j = 0; j != 12; j++)
+		for (int j = 0; j != 31; j++)
 		{
 			vector_casillas.emplace_back(j, i, true, false, false);
 			vector_SFML_casillas.emplace_back(j, i, true, false, false);
 		}
 	}
-
+	
+	// Vectors used for storing the nodes in the calculating process.
 	std::vector<Node> lista_abierta, lista_cerrada, lista_objetivo;
+	
+	// This vector is going to have the final path when everything has been calculated
+	// from the starting node to the end node we want to go to.
 	std::vector<Node> lista_trayecto;
 
 	std::vector<Node>::iterator iter;
 
-	// SFML Library Suff. The clock is only created because we want to paint a square after an interval (0.3s). If not put the path will be drawn
-	// immediately at the drawn.
+	// SFML Library Suff. The clock is only created because we want to paint a square after an interval (0.3s). If not put the path 
+	// will be drawn immediately at the drawn, destroying the "movement" effect because it's instantaneous.
 	sf::Clock myclock;
 	sf::Event event;
 	
@@ -175,7 +180,8 @@ int main()
 	{
 		if (start_working)
 		{
-			// We will put the starting position in a list and the end position in the other.
+			// We will put the starting position node in a vector and the end position node in another.
+			// All nodes are still in the vector vector_casillas previously defined.
 			for (auto it = vector_casillas.begin(); it != vector_casillas.end(); it++)
 			{
 				if (it->start_node)
@@ -188,47 +194,58 @@ int main()
 				}
 			}
 
-			// Iterate over and over again until the end node is in the lista_cerrada list.
+			// Iterate over and over again until the end node is in the lista_cerrada vector.
 			while (!node_in_lista(*lista_objetivo.begin(), lista_cerrada))
 			{
 
 				// Find the neighbours of the element added to the lista_cerrada, and add them to lista_abierta for further examination.
 				for (auto it = vector_casillas.begin(); it != vector_casillas.end(); it++)
 				{
-					// If the neighbour candidate is an okey node = is not in lista_abierta or lista cerrada already.
-					if (node_ok(*it, lista_cerrada, lista_abierta))  
+					// Performance boost. This if will only consider nodes that are direct neighbours of our first node.
+					// How? The neighbours are at a distance less than 1 in both x and y.
+					if (abs(it->x - lista_cerrada.back().x) <= 1 && abs(it->y - lista_cerrada.back().y) <= 1)
 					{
-						// Get it's distance from the present node.
-						int dist_x = std::sqrt(std::pow(lista_cerrada.back().x - it->x, 2));
-						int dist_y = std::sqrt(std::pow(lista_cerrada.back().y - it->y, 2));
-
-						// Only accept the nodes (squares) that are his neighbours (x and y distance <= 1) and are valid neighbours.
-						if (dist_x <= 1 && dist_y <= 1)
+						// If the neighbour candidate is an okey node = is not in lista_abierta or lista_cerrada vectors already.
+						if (node_ok(*it, lista_cerrada, lista_abierta))
 						{
-							// Le digo quien es su padre.
-							it->parent_x = lista_cerrada.back().x;
-							it->parent_y = lista_cerrada.back().y;
-							// Lo meto en la lista abierta
-							lista_abierta.push_back(*it);
+							// Get it's distance from the present node, just its x and y, nothing more.
+							int dist_x = std::sqrt(std::pow(lista_cerrada.back().x - it->x, 2));
+							int dist_y = std::sqrt(std::pow(lista_cerrada.back().y - it->y, 2));
+
+							// Only accept the nodes (squares) that are his neighbours (x and y distance <= 1) and are valid neighbours.
+							
+							// We don't want to accept diagonal movement. If we wanted to allow it, it would be enought to change next if to: 
+							// if (dist_x <= 1 && dist_y <= 1)
+							if ((dist_x <= 1 && dist_y == 0) || (dist_x == 0 && dist_y <= 1))
+							{
+								// Since this neighbour has been generated and accepted we must write into him who is his father.
+								it->parent_x = lista_cerrada.back().x;
+								it->parent_y = lista_cerrada.back().y;
+								// Now I add this neighbour to lista_abierta. The calculations of g, h and f will take place with the
+								// objects in lista abierta vector.
+								lista_abierta.push_back(*it);
+							}
+							
 						}
-					}
 				}
 
 				// We will calculte the g, h and f of each node previously added to the lista_abierta.
 				for (auto it = lista_abierta.begin(); it != lista_abierta.end(); it++)
 				{
+					// h^2 = dist_x ^2 + dist_y ^2. Remember, in lista_cerrada we have only 1 item, the starting node right now. But we will add
+					// candidates after that, then lista_cerrada.back will have the last one added.
 					it->g = std::sqrt(std::pow(lista_cerrada.back().x - it->x, 2) + std::pow(lista_cerrada.back().y - it->y, 2));
 					it->h = std::sqrt(std::pow(lista_objetivo.back().x - it->x, 2) + std::pow(lista_objetivo.back().y - it->y, 2));
 					it->f = it->g + it->h;
 				}
 
-				// We will reorder the lista_abierta vector by the value of f. The lowest value will be found at the lista_abierta.begin() position.
-				// using a lambda function. 
+				// We will reorder the lista_abierta vector by the value of f. The lowest value will be found after using the lamdba function
+				// will be in the lista_abierta.begin() position.
 				std::sort(lista_abierta.begin(), lista_abierta.end(), [](const Node& A, const Node& B) {return A.f < B.f; });
 
 				// Importat step!
-				// Check is a solution is possible. We will reach the 'not possible' part when we have added all the elements to the lista_cerrada.
-				// remaining the lista_abierta with a size of 0. Then exit the loop because you are trapped and clear everything afterwards.
+				// Check if a solution is possible. We will reach the 'not possible' part when we have added all the elements to the lista_cerrada.
+				// remaining the lista_abierta with a size of 0. Then we will exit the loop because it means we are trapped and clear everything afterwards.
 
 				if (lista_abierta.size() == 0)
 				{
@@ -247,13 +264,16 @@ int main()
 				// the lista_cerrada vector.
 				auto iter_lowest_f = lista_abierta.begin();
 
-				lista_cerrada.push_back(*iter_lowest_f);
-				std::swap(*iter_lowest_f, lista_abierta.back());
-				lista_abierta.pop_back();
+				lista_cerrada.push_back(*iter_lowest_f);  
+				// We switch the first element (lowest f) for the last one (biggest f) just so we can use pop_back and take the element of the
+				// lowest f out. 
+				std::swap(*iter_lowest_f, lista_abierta.back()); 
+				lista_abierta.pop_back(); 
 
 			
-				// Once the end node has been added to the lista_cerrada vector this loop will end and we will start to look for the path
-				// to the first node from the last one added (the end node), using the parent stuff described in the variables of the class.
+				// Once the end node has been added to the lista_cerrada vector this loop will end because we have a solution. 
+				// And we will start to look for the path to the first node from the last one added (the end node), using the parent 
+				// stuff described in the variables of the class.
 				if (node_in_lista(*lista_objetivo.begin(), lista_cerrada))
 				{
 					start_working = false;
@@ -267,19 +287,19 @@ int main()
 		if (start_path)
 		{
 			// We will start by going from the end node to the first node. Looking at the parents that each node has.
-			// That's how we are going to find our way
+			// That's how we are going to find our way, sounds complex but it's pretty lame.
 
-			// Our last node added to lista_cerrada is in fact the end node. Add that node at the first position in lista_trayecto, which is 
+			// Our last node added to lista_cerrada is in fact the end node. Add that node into the first position in lista_trayecto, which is 
 			// completly empty at this point.
 			lista_trayecto.insert(lista_trayecto.begin(), lista_cerrada.back());
 
 			// The parent stuff. The parent of the end node will have and x, y = end_node->parent_x, end_node->parent_y;
 			int x_final_parent = lista_cerrada.back().parent_x;
 			int y_final_parent = lista_cerrada.back().parent_y;
-			// And so on through the whole chain. Each node has a parent that added him.
+			// And so on through the whole chain. Each node has a parent that added him, we go backwards.
 
 			// While the start node hasn't beed added to lista_trayecto, keep going backwards looking for the parents starting from the end node.
-			// *lista_cerrada.being() is the first node that we added, the starting node and it's still in the first position of that list.
+			// *lista_cerrada.being() is the first node that we added (the starting node) and it's still in the first position of that list.
 			while (!node_in_lista(*lista_cerrada.begin(), lista_trayecto))
 			{
 				// Find parents.
@@ -308,6 +328,7 @@ int main()
 		// This while is to keep the window active, SFML stuff mainly.
 		while (window.pollEvent(event))
 		{
+			// If you closed the window
 			if (event.type == sf::Event::Closed)
 				window.close();
 			// If a left click was made.
@@ -368,13 +389,20 @@ int main()
 					}
 				}
 			}
+			// We want to hold space in order to also draw without clicking everytime on the nodes. You can perfectly comment out this 
+			// if without any issue
+			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space)
+			{
+				if (button_signal == create_obstacles)
+				{
+					set_obstacles(vector_SFML_casillas, PosMouse2, vector_casillas);
+				}
+			}
 
 			// Something that will always be available (without any signals), but only for the obstacles, is to remove them by making right 
-			// click over them.
+			// click over them. (left click to add them, right to remove them)
 			if (event.type == event.MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right)
 			{
-				/*std::cout << "Right Click" << "\n";*/
-
 				PosMouse.x = static_cast<float>(sf::Mouse::getPosition(window).x);
 				PosMouse.y = static_cast<float>(sf::Mouse::getPosition(window).y);
 
@@ -386,14 +414,18 @@ int main()
 		if (start_drawing)
 		{
 			time = myclock.getElapsedTime().asSeconds();  // We get the time from the clock created at the begining.
-			// The program is only allowed to draw the path after 0.03s each time, to make it look like it's moving.
-			// iter = lista_trayecto.begin() previously defined.
+			// The program is only allowed to draw the path after 0.03s each time, to make it look like it's moving and finding
+			// it's way to the ending node. 
+			// iter = lista_trayecto.begin() previously defined, so iterate until iter reaches the end of lista_trayecto vector.
 			if (time >= 0.03 && iter < lista_trayecto.end())
 			{
+				// Now comes the part of connecting the nodes from the calculation to the nodes in the screen (remember they are not the same)
+				// but they share the same x_identificator and y_identificator (0, 0), (1, 1), (7,3) just like in a matrix.
 				int x_ident = iter->x;
 				int y_ident = iter->y;
-				// The way that the graphical nodes are connected to the nodes used for calculations is by x,y. They both share the same
-				// coordinates, but only the graphical nodes are the ones being drawn. We are looking for the graphical nodes to paint them blue.
+				// We are looking for the graphical node that corresponds to the node used in the calculations. iter_casilla will give us
+				// an iterator to the corresponding graphical node, that we will easily paint. vecot_SFML_casillas contains our graphical nodes,
+				// the ones from (NodeBody class) and lista_trayecto contains the path of nodes used for the calculation (the ones from Node class)
 				auto iter_casilla = std::find_if(vector_SFML_casillas.begin(), vector_SFML_casillas.end(),
 					[x_ident, y_ident](NodeBody& A) {return (A.x_ident == x_ident && A.y_ident == y_ident); });
 
@@ -411,7 +443,7 @@ int main()
 		{
 			window.draw(elements.Body);
 		}
-
+		// Buttons and text.
 		window.draw(Start_button);
 		window.draw(Restart_button);
 		window.draw(ButtonText);
@@ -423,7 +455,8 @@ int main()
 	return 0;
 }
 
-// Overloading of ==, != done mainly to fast compare nodes.
+// Overloading of ==, != done mainly to compare nodes and look if they are present in a vector or no. Easier to overload == and !=
+// than to do it constantly in in and if (...)
 bool operator == (const Node& A, const Node& B)
 {
 	return (A.x == B.x && A.y == B.y);
@@ -450,7 +483,8 @@ bool node_ok(const Node& node, std::vector<Node> lista_cerrada, std::vector<Node
 	// The node that we pass cannot be in lista_cerrada, abierta or transitable == false or be the starting node.
 	auto iter = std::find(lista_cerrada.begin(), lista_cerrada.end(), node);
 	auto iter2 = std::find(lista_abierta.begin(), lista_abierta.end(), node);
-
+	// If it has been found in lista_cerrada or lista_abierta that iterator will point to != vector.end() position
+	// so return that the node_ok is not okey and shall not be used.
 	if (iter != lista_cerrada.end() || iter2 != lista_abierta.end() || node.transitable == false || node.start_node == true)
 	{
 		return false;
@@ -482,7 +516,7 @@ void set_obstacles(std::vector<NodeBody>& vector_SFML_casillas, sf::Vector2f Pos
 	int y_ident_vector_nodos = 0;
 
 	// Get the node(square) where we clicked. Change its color tu black and give me his x,y. Those x,y will be shared by one of the nodes in
-	// vector_casillas.
+	// vector_casillas. vector_SFML_casillas is the one with the graphical nodes, we paint them black.
 	for (auto iter = vector_SFML_casillas.begin(); iter != vector_SFML_casillas.end(); iter++)
 	{
 		if (iter->Body.getGlobalBounds().contains(PosMouse))
@@ -493,7 +527,9 @@ void set_obstacles(std::vector<NodeBody>& vector_SFML_casillas, sf::Vector2f Pos
 			y_ident_vector_nodos = iter->y_ident;
 		}
 	}
-	// Since we are putting obstacles, uptade the nodes to make them not transitable.
+	// Since we are putting obstacles, uptade the nodes of the calculations to make them not transitable.
+	// vector_casillas is the vector with the nodes that are going to be used for calculations.
+	// If this is not done the algorithm won't know that the black graphical nodes are not transitable.
 	for (auto iter = vector_casillas.begin(); iter != vector_casillas.end(); iter++)
 	{
 		if (x_ident_vector_nodos == iter->x && y_ident_vector_nodos == iter->y)
@@ -529,7 +565,10 @@ void delete_obstacles(std::vector<NodeBody>& vector_SFML_casillas, sf::Vector2f 
 
 }
 
-// Both functions, set_origin and set_end word in the same way.
+// Both functions, set_origin and set_end work in the same way. Check over which node (graphical one) the click has been made.
+// change its color to blue or red and take its x_identificator and y_identificator, used afterwards to update the nodes with
+// which the calculation will be made (the ones in vector_casillas). Each node in vector_SFML_casillas is linked to the nodes in
+// vector_casillas by the x_ident and y_ident.
 void set_origin(std::vector<NodeBody>& vector_SFML_casillas, sf::Vector2f PosMouse, std::vector<Node>& vector_casillas)
 {
 	int x_ident_vector_nodos = 0;
